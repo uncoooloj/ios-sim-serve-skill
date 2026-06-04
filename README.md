@@ -7,7 +7,7 @@ It teaches Codex to treat simulator serving as a two-phase mobile workflow:
 1. Run the requested app on the iOS Simulator.
 2. Expose the live Simulator through localhost with `npx serve-sim`.
 
-The important part is the order. A running `serve-sim` process does not mean the app is running. The skill makes Codex prove both.
+The important part is the order and the acceptance bar. A running `serve-sim` process does not mean the app is running, and a `200 OK` stream does not mean the browser view worked. The skill makes Codex prove the browser-visible result when that is what the user asked for.
 
 ## What It Does
 
@@ -23,7 +23,9 @@ It covers:
 - `npx serve-sim --list` verification
 - root URL `404` and black browser tab confusion
 - `/stream.mjpeg` as the useful visual testing URL
-- Simulator screenshots as proof when the in-app browser blocks the stream
+- bounded stream probes for MJPEG endpoints
+- browser-visible verification before calling the task done
+- Simulator screenshots as fallback proof when the in-app browser blocks the stream
 
 ## When To Use It
 
