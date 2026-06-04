@@ -14,9 +14,9 @@ Treat "sim serve" as a two-phase mobile workflow: first run the requested app on
 Use this sequence for user requests like "run the app in sim serve", "use serve sim so we can test", or "open the mobile app in browser":
 
 1. Launch the requested app on the booted iOS Simulator.
-2. Start or reuse `serve-sim`.
-3. Verify `serve-sim` with `npx serve-sim --list`.
-4. Use the reported `streamUrl`, usually `http://127.0.0.1:<port>/stream.mjpeg`.
+2. Start `serve-sim` in the mode the user actually asked for.
+3. For an emulator/preview page or a literal "run `npx serve-sim`" request, run `npx serve-sim <device>` in foreground and use its preview URL, usually `http://localhost:3200`.
+4. For a background stream/status request, use `npx serve-sim --detach` and verify with `npx serve-sim --list`; that JSON usually reports the raw stream server on `http://127.0.0.1:3100`.
 5. Open the browser surface the user asked for and verify it visually.
 6. If the browser layer fails, say it failed in-browser; then prove the Simulator state separately with a screenshot or UI inspection.
 
@@ -40,7 +40,9 @@ Do not report "running correctly" for a browser task just because:
 
 - If the user asks only whether Simulator serving is running, run `npx serve-sim --list` and report the PID, device, `url`, `streamUrl`, and `wsUrl`.
 - If the user asks to run an app in sim serve or browser, launch the app first, then serve the Simulator.
+- If the user literally says "run `npx serve-sim`" or asks for the emulator page, run foreground preview mode: `npx serve-sim <device>`. Do not replace it with `--detach`.
 - If `serve-sim` is already running, reuse it only after confirming it points at the intended booted device; still verify the requested app is launched.
+- If an earlier attempt created a custom wrapper, prefer stopping that wrapper and using the real `serve-sim` preview page before adding more wrapper code.
 - If the root page is `404`, blank, or black, check `/stream.mjpeg` before calling the stream broken, but still verify the browser can render a useful view.
 - If the in-app browser reports `ERR_BLOCKED_BY_CLIENT`, treat that as a browser-layer problem, not an app-launch failure. Report it as partial success for browser tasks.
 - If you create a wrapper/viewer page, start it successfully before navigating the browser to it, then verify the rendered browser page. A wrapper root `200 OK` is not enough.
@@ -98,18 +100,27 @@ Check first:
 npx serve-sim --list
 ```
 
-If it is not running or it points at the wrong device, start it:
+Choose the mode by intent:
+
+- Preview/browser page: run foreground preview mode and keep the session alive.
+- Background/raw stream: run detached mode and verify with `--list`.
 
 ```bash
+npx serve-sim <udid-or-device-name>
 npx serve-sim --detach
 npx serve-sim --list
 ```
 
-Use the JSON output as the source of truth. Capture `url`, `streamUrl`, `wsUrl`, `port`, `device`, and `pid`.
+Know the port split:
+
+- Foreground preview mode prints a browser preview page, commonly `http://localhost:3200`.
+- Detached/list mode reports the raw stream server, commonly `http://127.0.0.1:3100`, plus `streamUrl` at `/stream.mjpeg`.
+
+Use `--list` JSON as the source of truth for the stream process and device. Use the foreground command output as the source of truth for the preview page URL. Capture preview URL, `url`, `streamUrl`, `wsUrl`, `port`, `device`, and `pid` when available.
 
 ### 5. Open or report the browser surface
 
-Use `streamUrl` for visual testing. The root `url` can return `404` while the stream is healthy.
+Use the foreground preview URL for an emulator page. Use `streamUrl` for raw visual stream testing. The detached root `url` can return `404` while the stream is healthy.
 
 Validate the stream directly when possible with a bounded probe because MJPEG streams may stay open by design:
 
@@ -117,11 +128,11 @@ Validate the stream directly when possible with a bounded probe because MJPEG st
 curl --max-time 3 -sS -D - -o /dev/null http://127.0.0.1:<port>/stream.mjpeg
 ```
 
-When the user asks to see it in Codex, use the in-app Browser for the reported localhost URL. Verify the browser result with a screenshot or inspection of the rendered page, not just terminal probes. If Browser automation blocks the URL, do not keep retrying the same blocked path; provide the `streamUrl`, attach a Simulator screenshot as fallback proof, and explicitly say the in-browser view did not work.
+When the user asks to see it in Codex, use the in-app Browser for the preview URL first, then fall back to `streamUrl` only if the preview URL is unavailable. Verify the browser result with a screenshot or inspection of the rendered page, not just terminal probes. If Browser automation blocks the URL, do not keep retrying the same blocked path; provide the preview URL and `streamUrl`, attach a Simulator screenshot as fallback proof, and explicitly say the in-browser view did not work.
 
 ### Optional viewer wrapper
 
-Only build a small viewer wrapper when the raw `streamUrl` is healthy but the browser cannot render it directly. If you do:
+Only build a small viewer wrapper after trying the real foreground `serve-sim` preview page. A wrapper is a last resort when the real preview and raw `streamUrl` cannot satisfy the requested browser surface. If you do:
 
 1. Start the wrapper with the needed sandbox/network permission before opening it.
 2. Verify its root HTML endpoint and its proxied stream with bounded probes.
@@ -135,9 +146,11 @@ If any of those steps fail, keep the wrapper running only if it helps debugging,
 - `npx sim-serve` is usually wrong: the npm package is `serve-sim`.
 - `serve-sim` is not Metro, Expo, Flutter, Vite, or the app runner.
 - A running `serve-sim` process does not prove the requested app is running.
-- Root `404` is normal for detached stream mode; prefer `/stream.mjpeg`.
+- `npx serve-sim --detach` is not the same as `npx serve-sim`; detached mode is for the background raw stream, while foreground mode starts the package's preview page.
+- Root `404` is normal for detached stream mode; prefer `/stream.mjpeg` for the raw stream or foreground preview mode for the emulator page.
 - A black or blocked browser tab can be a browser-layer failure even when the Simulator and stream are healthy.
 - A wrapper page can fail even if the underlying `serve-sim` stream is healthy; do not send the user to a wrapper that has not successfully started.
+- A custom wrapper is easy to confuse with the real emulator page; prefer the built-in `serve-sim` preview page on the port printed by the foreground command, often `3200`.
 - `curl -I` can hang or mislead on MJPEG streams; use a bounded request and treat it as diagnostics, not final proof.
 - First-run system prompts, update sheets, and permission dialogs can make the stream look wrong; inspect or dismiss them and re-screenshot.
 
@@ -148,6 +161,7 @@ End with the facts the user needs to test:
 - app/framework runner used,
 - Simulator device/UDID,
 - app bundle ID or launch result,
+- `serve-sim` preview URL, if foreground preview mode is used,
 - `serve-sim` `streamUrl`,
 - any still-running dev servers,
 - whether the requested browser surface is actually visible,

@@ -19,8 +19,10 @@ It covers:
 - React Native, Expo, Flutter, native iOS, SwiftUI, and KMP iOS projects
 - booted Simulator discovery
 - app build, install, and launch
+- foreground `npx serve-sim <device>` preview mode
 - `npx serve-sim --detach`
 - `npx serve-sim --list` verification
+- preview page versus raw stream port confusion, commonly `3200` versus `3100`
 - root URL `404` and black browser tab confusion
 - `/stream.mjpeg` as the useful visual testing URL
 - bounded stream probes for MJPEG endpoints
