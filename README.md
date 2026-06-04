@@ -1,17 +1,20 @@
 # iOS Sim Serve
 
-This skill fixes a small but costly workflow confusion: "sim serve" is not the app runner.
+Run an iOS app on the iOS Simulator and expose the live Simulator in a browser with `serve-sim`.
 
-It teaches Codex to treat simulator serving as a two-phase mobile workflow:
+This skill is for Codex, Claude Code, and other IDE agents that need to see and test a native iOS app without asking the user to manually inspect the macOS Simulator. It teaches the agent to run the app, start `serve-sim`, open the browser preview, and verify the real mobile UI.
 
-1. Run the requested app on the iOS Simulator.
-2. Expose the live Simulator through localhost with `npx serve-sim`.
+## Why Use It
 
-The important part is the order and the acceptance bar. A running `serve-sim` process does not mean the app is running, and a `200 OK` stream does not mean the browser view worked. The skill makes Codex prove the browser-visible result when that is what the user asked for.
+- Turns the iOS Simulator into a browser-accessible review surface.
+- Lets agents capture proof with screenshots and browser inspection.
+- Keeps mobile debugging inside the IDE loop: build, launch, view, tap, type, inspect, repeat.
+- Makes it easier to collaborate on native UI because the user can open a URL instead of switching tools.
+- Supports interaction through `serve-sim` commands such as `tap`, `type`, `button`, and `rotate`.
 
 ## What It Does
 
-Use this skill when you want Codex to run a mobile app in the iOS Simulator and make it viewable through a browser or localhost.
+Use this skill when you want an agent to run a mobile app in the iOS Simulator and make it viewable through a browser or localhost.
 
 It covers:
 
@@ -22,12 +25,66 @@ It covers:
 - foreground `npx serve-sim <device>` preview mode
 - `npx serve-sim --detach`
 - `npx serve-sim --list` verification
-- preview page versus raw stream port confusion, commonly `3200` versus `3100`
-- root URL `404` and black browser tab confusion
+- preview page and raw stream URLs, commonly `3200` and `3100`
 - `/stream.mjpeg` as the useful visual testing URL
-- bounded stream probes for MJPEG endpoints
 - browser-visible verification before calling the task done
 - Simulator screenshots as fallback proof when the in-app browser blocks the stream
+
+## Quick Start
+
+The agent should follow this shape:
+
+```bash
+# 1. Confirm or choose the Simulator.
+xcrun simctl list devices booted
+
+# 2. Run the app with the project-native command.
+# Examples: yarn ios, npm run ios, npx expo run:ios, flutter run -d <udid>,
+# or xcodebuild + xcrun simctl install/launch for native iOS projects.
+
+# 3. Start the serve-sim browser preview.
+npx serve-sim <udid-or-device-name>
+
+# 4. Open the printed preview URL, often:
+# http://localhost:3200
+```
+
+For background streaming instead of a foreground preview:
+
+```bash
+npx serve-sim --detach <udid-or-device-name>
+npx serve-sim --list
+```
+
+## Agent Workflow
+
+1. Identify the app framework and preferred run command from the repo.
+2. Confirm the target Simulator and keep the UDID visible.
+3. Build, install, and launch the app on that Simulator.
+4. Start `serve-sim` in the right mode:
+   - foreground preview for a browser page,
+   - detached mode for a background stream.
+5. Open the preview URL in the IDE browser.
+6. Verify the live mobile UI with a screenshot or browser inspection.
+7. Report the app runner, Simulator, bundle/app identity, preview URL, stream URL, and proof.
+
+## URL Modes
+
+`serve-sim` exposes two useful surfaces:
+
+- Preview page: usually `http://localhost:3200`, printed by foreground `npx serve-sim <device>`.
+- Raw stream: usually `http://127.0.0.1:3100/stream.mjpeg`, reported by `npx serve-sim --list`.
+
+Use the preview page when the user wants to see or test the emulator in a browser. Use the raw stream for lower-level checks, screenshots, or embedding.
+
+## For IDE Agents
+
+This skill is written for Codex, but the workflow is portable:
+
+- Claude Code can read `SKILL.md` as an operating guide before running commands.
+- Cursor, Windsurf, or other IDE agents can use the same command sequence.
+- Any agent should prefer project-native app launch commands, then `serve-sim` for the browser proxy.
+- The acceptance bar is the same everywhere: the real app should be running on the Simulator and visible through the browser proxy, or the agent should clearly explain which layer is blocked.
 
 ## When To Use It
 
@@ -36,8 +93,8 @@ Use `ios-sim-serve` for requests like:
 - "Run this in sim serve so we can test it."
 - "Use serve sim and open the mobile app in browser."
 - "Run the app on the booted simulator then use sim server."
-- "Why is the sim server black?"
 - "Open the iOS Simulator stream in Codex."
+- "Run `npx serve-sim` for this app."
 
 Do not use it for ordinary web dev servers, unless the task is specifically to show an iOS Simulator over localhost.
 
@@ -69,7 +126,7 @@ The skill is intentionally small: one `SKILL.md` workflow and Codex UI metadata 
 
 ## Files
 
-- `SKILL.md` - the simulator serving workflow and failure-mode checklist
+- `SKILL.md` - the simulator serving workflow and verification checklist
 - `agents/openai.yaml` - Codex UI metadata
 
 ## License

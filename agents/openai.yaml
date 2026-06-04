@@ -1,4 +1,4 @@
 interface:
   display_name: "iOS Sim Serve"
-  short_description: "Run mobile apps through serve-sim"
+  short_description: "Proxy iOS Simulator to a browser"
   default_prompt: "Use $ios-sim-serve to run this mobile app on the iOS Simulator and expose it in the browser."
