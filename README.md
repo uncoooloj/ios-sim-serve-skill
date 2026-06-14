@@ -26,7 +26,7 @@ It covers:
 - `npx serve-sim --detach`
 - `npx serve-sim --list` verification
 - preview page and raw stream URLs, commonly `3200` and `3100`
-- `/stream.mjpeg` as the useful visual testing URL
+- `/stream.mjpeg` as a raw fallback/debug URL, not the first browser target
 - browser-visible verification before calling the task done
 - Simulator screenshots as fallback proof when the in-app browser blocks the stream
 
@@ -49,6 +49,8 @@ npx serve-sim <udid-or-device-name>
 # http://localhost:3200
 ```
 
+For browser viewing, open the printed preview URL first. Do not start by opening `npx serve-sim --list` URLs or `/stream.mjpeg`; those are status and raw-stream fallback surfaces.
+
 For background streaming instead of a foreground preview:
 
 ```bash
@@ -64,9 +66,9 @@ npx serve-sim --list
 4. Start `serve-sim` in the right mode:
    - foreground preview for a browser page,
    - detached mode for a background stream.
-5. Open the preview URL in the IDE browser.
+5. Open the foreground preview URL in the IDE browser before any raw stream URL.
 6. Verify the live mobile UI with a screenshot or browser inspection.
-7. Report the app runner, Simulator, bundle/app identity, preview URL, stream URL, and proof.
+7. Report the app runner, Simulator, bundle/app identity, preview URL, any raw stream URL that was used, and proof.
 
 ## URL Modes
 
@@ -75,7 +77,7 @@ npx serve-sim --list
 - Preview page: usually `http://localhost:3200`, printed by foreground `npx serve-sim <device>`.
 - Raw stream: usually `http://127.0.0.1:3100/stream.mjpeg`, reported by `npx serve-sim --list`.
 
-Use the preview page when the user wants to see or test the emulator in a browser. Use the raw stream for lower-level checks, screenshots, or embedding.
+Use the preview page when the user wants to see or test the emulator in a browser. Use the raw stream for lower-level checks, screenshots, embedding, or fallback after the preview page is unavailable or blocked.
 
 ## For IDE Agents
 
