@@ -27,6 +27,8 @@ Use this sequence for requests like "run the app in sim serve", "use serve sim s
 
 Browser-first rule: when the user asks to open, view, inspect, or test the Simulator in a browser, do not start by opening `--list` URLs or `/stream.mjpeg`. Run foreground preview mode and open its printed `localhost:<preview-port>` URL first. Treat `npx serve-sim --list`, raw stream ports, and `/stream.mjpeg` as inventory, status, or fallback/debug surfaces.
 
+Wrong path to avoid: `npx serve-sim --list` -> open `url` or `streamUrl` -> see the raw stream root return `404` or `/stream.mjpeg` hit `ERR_BLOCKED_BY_CLIENT` -> conclude browser localhost is blocked. That is the raw stream server, not the preview page. Start or restart foreground preview mode instead.
+
 ## Why This Helps
 
 - Gives Codex, Claude Code, and other IDE agents a browser surface for a native iOS app.
@@ -51,6 +53,7 @@ For browser requests, process IDs, `200 OK`, and native screenshots are supporti
 - Background stream: use `npx serve-sim --detach <device>` when the user wants a long-running background stream or status check. Confirm with `npx serve-sim --list`.
 - Existing stream: reuse an existing `serve-sim` process only after confirming it targets the intended booted device and the app is launched. If the user wants a browser page, still start foreground preview mode instead of opening the existing raw stream URL first.
 - Direct stream: use `streamUrl`, commonly `http://127.0.0.1:3100/stream.mjpeg`, only when the user specifically needs the raw MJPEG stream or foreground preview mode is unavailable or fails.
+- Stale preview URL: if the browser is already pointed at a preview URL such as `http://localhost:3201` but that port is dead, restart foreground preview on that same preview port with `npx serve-sim -p 3201 <device>` and open it again. Do not fall through to the raw stream port.
 
 ## Workflow
 
@@ -107,6 +110,12 @@ npx serve-sim <udid-or-device-name>
 
 Use the URL printed by that foreground command as the first browser target. This is usually the browser-friendly preview page, commonly `http://localhost:3200`.
 
+If the user or browser already expects a specific preview port, preserve it:
+
+```bash
+npx serve-sim -p <preview-port> <udid-or-device-name>
+```
+
 Use current-state checks for inventory, stale-process detection, or background streams, not as the first browser-opening source:
 
 ```bash
@@ -127,6 +136,8 @@ Capture the URLs:
 
 Use `--list` JSON as the source of truth for the stream process and device. Use the foreground command output as the source of truth for the preview page URL. A healthy raw stream does not prove the browser preview is open.
 
+If `--list` reports only `url`/`streamUrl` on a stream port such as `3101`, do not open those URLs to satisfy a browser-preview request. That output means a raw stream exists; it does not mean a preview page exists.
+
 ### 5. Open or report the browser surface
 
 Use the foreground preview URL for the browser page. Do this before any raw stream probe. Use `streamUrl` only for raw visual stream testing, embedding, or fallback when the preview page is unavailable.
@@ -137,7 +148,7 @@ Validate the raw stream directly only when it is relevant, with a bounded probe 
 curl --max-time 3 -sS -D - -o /dev/null http://127.0.0.1:<port>/stream.mjpeg
 ```
 
-When the user asks to see it in Codex or another IDE browser, open the preview URL first. Verify the browser result with a screenshot or inspection of the rendered page. If the browser layer blocks the preview page, then try the raw `streamUrl` as a fallback, provide both URLs, attach a Simulator screenshot as fallback proof, and say the app is ready on Simulator while the browser proxy is blocked.
+When the user asks to see it in Codex or another IDE browser, open the preview URL first. Verify the browser result with a screenshot or inspection of the rendered page. If a stale preview port fails, restart foreground preview on that port and try again. Only after the freshly started preview URL fails should you try the raw `streamUrl` as a fallback, provide both URLs, attach a Simulator screenshot as fallback proof, and say the app is ready on Simulator while the browser proxy is blocked.
 
 ### 6. Interact With The Simulator
 
@@ -160,6 +171,7 @@ Check `npx serve-sim --help` or command-specific help when choosing coordinates 
 - `npx serve-sim --list` is useful for device/process truth, but it is not the browser preview path.
 - The raw stream endpoint and the preview page may use different ports.
 - Browser tools may block direct MJPEG URLs such as `/stream.mjpeg`; the foreground preview page is the optimal first browser target.
+- A `404` from a raw stream root such as `http://localhost:3101` is expected and is not evidence that the preview page or Browser plugin is broken.
 - First-run system prompts, update sheets, and permission dialogs are part of the real mobile state. Inspect or dismiss them before handing the app over for testing.
 - A custom wrapper should be a last resort. Prefer the built-in `serve-sim` preview and interaction commands.
 

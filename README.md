@@ -51,6 +51,12 @@ npx serve-sim <udid-or-device-name>
 
 For browser viewing, open the printed preview URL first. Do not start by opening `npx serve-sim --list` URLs or `/stream.mjpeg`; those are status and raw-stream fallback surfaces.
 
+If a previously opened preview URL is stale, restart foreground preview on that same port instead of falling back to the raw stream port:
+
+```bash
+npx serve-sim -p 3201 <udid-or-device-name>
+```
+
 For background streaming instead of a foreground preview:
 
 ```bash
@@ -78,6 +84,8 @@ npx serve-sim --list
 - Raw stream: usually `http://127.0.0.1:3100/stream.mjpeg`, reported by `npx serve-sim --list`.
 
 Use the preview page when the user wants to see or test the emulator in a browser. Use the raw stream for lower-level checks, screenshots, embedding, or fallback after the preview page is unavailable or blocked.
+
+Do not treat a `404` from the raw stream root, or `ERR_BLOCKED_BY_CLIENT` from `/stream.mjpeg`, as proof that the browser preview is blocked. Start or restart the foreground preview and open the printed preview URL.
 
 ## For IDE Agents
 
