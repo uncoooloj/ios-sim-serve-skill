@@ -29,6 +29,10 @@ It covers:
 - `/stream.mjpeg` as a raw fallback/debug URL, not the first browser target
 - browser-visible verification before calling the task done
 - Simulator screenshots as fallback proof when the in-app browser blocks the stream
+- runtime probing of the newest `serve-sim` with a narrow `0.1.39` fallback for
+  the known encoder failure
+- secure Mac Passwords/manual and Keychain/TOTP automation guidance for iOS and
+  Android staging tests
 
 ## Quick Start
 
@@ -42,8 +46,8 @@ xcrun simctl list devices booted
 # Examples: yarn ios, npm run ios, npx expo run:ios, flutter run -d <udid>,
 # or xcodebuild + xcrun simctl install/launch for native iOS projects.
 
-# 3. Start the serve-sim browser preview.
-npx serve-sim <udid-or-device-name>
+# 3. Start the version-aware serve-sim browser preview.
+scripts/serve-sim-safe.sh <udid-or-device-name>
 
 # 4. Open the printed preview URL, often:
 # http://localhost:3200
@@ -132,12 +136,24 @@ Use $ios-sim-serve to run this mobile app on the iOS Simulator and expose it in 
 - Skill folder: `ios-sim-serve`
 - Skill name: `ios-sim-serve`
 
-The skill is intentionally small: one `SKILL.md` workflow and Codex UI metadata in `agents/openai.yaml`.
+The skill keeps the core workflow in `SKILL.md` and places executable helpers
+and detailed security/version runbooks in `scripts/` and `references/`.
 
 ## Files
 
 - `SKILL.md` - the simulator serving workflow and verification checklist
 - `agents/openai.yaml` - Codex UI metadata
+- `scripts/serve-sim-safe.sh` - latest-first runtime probe with a narrow,
+  evidence-backed fallback
+- `scripts/keychain-totp.swift` - non-printing Keychain TOTP injection for Mac,
+  iOS Simulator, and Android Emulator
+- `tests/serve-sim-safe.test.sh` - deterministic fallback/refusal checks with
+  mocked process and health commands
+- `references/secure-staging-auth.md` - detailed human and automation login
+  runbook
+- `references/android-emulator-testing.md` - Android Studio, scrcpy, ADB, and
+  automation guidance for the equivalent test loop
+- `references/serve-sim-compatibility.md` - version evidence and update policy
 
 ## License
 
