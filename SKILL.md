@@ -14,6 +14,15 @@ The workflow has two halves:
 1. Run the app on the iOS Simulator.
 2. Start `serve-sim` so the Simulator is available from a browser.
 
+When staging authentication is part of the request, also read
+`references/secure-staging-auth.md`. It defines the Passwords/Keychain boundary,
+cross-platform TOTP injection, and cheapest-capable-model routing.
+
+When the user asks for an Android equivalent, read
+`references/android-emulator-testing.md`. `serve-sim` is iOS-only; Android's
+closest local mirror is scrcpy, while ADB plus the project's UI harness is the
+preferred deterministic agent path.
+
 When the user asks to view or test in a browser, the target state is a visible live Simulator surface in that browser.
 
 ## Core Workflow
@@ -21,7 +30,10 @@ When the user asks to view or test in a browser, the target state is a visible l
 Use this sequence for requests like "run the app in sim serve", "use serve sim so we can test", "run `npx serve-sim`", or "open the mobile app in browser":
 
 1. Launch the requested app on the booted iOS Simulator.
-2. For browser-view requests, start foreground preview mode with `npx serve-sim <udid-or-device-name>`.
+2. For browser-view requests, start foreground preview mode with
+   `scripts/serve-sim-safe.sh <udid-or-device-name>` when the bundled script is
+   available. It probes `latest` and uses the runtime-proven fallback only for
+   the known encoder failure. Otherwise use `npx serve-sim <device>` directly.
 3. Open the preview URL printed by the foreground command in the browser.
 4. Verify the app is visible and ready for the user to test.
 
@@ -54,6 +66,9 @@ For browser requests, process IDs, `200 OK`, and native screenshots are supporti
 - Existing stream: reuse an existing `serve-sim` process only after confirming it targets the intended booted device and the app is launched. If the user wants a browser page, still start foreground preview mode instead of opening the existing raw stream URL first.
 - Direct stream: use `streamUrl`, commonly `http://127.0.0.1:3100/stream.mjpeg`, only when the user specifically needs the raw MJPEG stream or foreground preview mode is unavailable or fails.
 - Stale preview URL: if the browser is already pointed at a preview URL such as `http://localhost:3201` but that port is dead, restart foreground preview on that same preview port with `npx serve-sim -p 3201 <device>` and open it again. Do not fall through to the raw stream port.
+
+Read `references/serve-sim-compatibility.md` before choosing or changing a
+pinned version. Process liveness and HTTP 200 are not frame-level proof.
 
 ## Workflow
 
@@ -102,7 +117,18 @@ xcrun simctl io <udid> screenshot /tmp/<app>-simulator.png
 
 ### 4. Start or reuse serve-sim
 
-For browser requests, start the browser preview surface first:
+For browser requests, prefer the version-aware launcher:
+
+```bash
+scripts/serve-sim-safe.sh -p <preview-port> <udid-or-device-name>
+```
+
+It first runs the current release, watches for the known frame-encoder failure,
+and then uses the last runtime-proven fallback. It refuses to hide unrelated
+errors. Keep its foreground process running while the user tests.
+
+If the bundled launcher is unavailable, start the browser preview surface
+directly:
 
 ```bash
 npx serve-sim <udid-or-device-name>
@@ -173,7 +199,9 @@ Check `npx serve-sim --help` or command-specific help when choosing coordinates 
 - Browser tools may block direct MJPEG URLs such as `/stream.mjpeg`; the foreground preview page is the optimal first browser target.
 - A `404` from a raw stream root such as `http://localhost:3101` is expected and is not evidence that the preview page or Browser plugin is broken.
 - First-run system prompts, update sheets, and permission dialogs are part of the real mobile state. Inspect or dismiss them before handing the app over for testing.
-- A custom wrapper should be a last resort. Prefer the built-in `serve-sim` preview and interaction commands.
+- Prefer the bundled narrow compatibility launcher over writing another custom
+  wrapper. It exists only because the current upstream encoder regression can
+  leave an HTTP-healthy preview with no usable frames.
 
 ## Completion Report
 
