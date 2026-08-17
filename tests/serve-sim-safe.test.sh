@@ -18,6 +18,15 @@ mkdir -p "$tmp_dir/bin"
 
 cat >"$tmp_dir/bin/curl" <<'EOF'
 #!/usr/bin/env bash
+if [[ -n "${MOCK_CURL_DELAY_FILE:-}" ]]; then
+  count=0
+  [[ -f "$MOCK_CURL_DELAY_FILE" ]] && count="$(cat "$MOCK_CURL_DELAY_FILE")"
+  count=$((count + 1))
+  printf '%s' "$count" >"$MOCK_CURL_DELAY_FILE"
+  if ((count < 4)); then
+    exit 1
+  fi
+fi
 exit 0
 EOF
 
@@ -60,7 +69,8 @@ wait_for_pattern() {
 }
 
 fallback_log="$tmp_dir/fallback-test.log"
-PATH="$tmp_dir/bin:$PATH" "$repo_root/scripts/serve-sim-safe.sh" \
+MOCK_CURL_DELAY_FILE="$tmp_dir/curl-count" PATH="$tmp_dir/bin:$PATH" \
+  "$repo_root/scripts/serve-sim-safe.sh" \
   --probe-seconds 2 --latest-version broken --fallback-version good \
   test-device >"$fallback_log" 2>&1 &
 runner_pid=$!

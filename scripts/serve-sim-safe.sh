@@ -172,13 +172,26 @@ monitor_active() {
 
 run_fallback() {
   local fallback_log="$tmp_dir/fallback.log"
+  local ready="false"
+  local attempt
 
   terminate_active
   start_version "$fallback_version" "$fallback_log"
-  sleep 2
-  if ! kill -0 "$active_pid" 2>/dev/null || \
-    ! curl --max-time 3 --fail --silent --output /dev/null \
+
+  for attempt in {1..15}; do
+    sleep 1
+    if grep -Eiq "$ENCODER_FAILURE_PATTERN" "$fallback_log" || \
+      ! kill -0 "$active_pid" 2>/dev/null; then
+      break
+    fi
+    if curl --max-time 2 --fail --silent --output /dev/null \
       "http://127.0.0.1:${preview_port}/"; then
+      ready="true"
+      break
+    fi
+  done
+
+  if [[ "$ready" != "true" ]]; then
     cat "$fallback_log" >&2
     echo "The runtime-proven fallback did not become ready." >&2
     return 1
